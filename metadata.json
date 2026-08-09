@@ -1,0 +1,6 @@
+{
+  "name": "QUIZ PROCTOR AI",
+  "description": "Web-Based Online Quiz Management System with AI, Machine Learning Analytics, Exam Integrity Monitoring, and Practice Quiz Management",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
