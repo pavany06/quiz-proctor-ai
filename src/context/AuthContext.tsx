@@ -7,6 +7,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, pass: string) => Promise<User>;
   registerStudent: (name: string, email: string, pass: string) => Promise<User>;
+  loginDirect: (role: 'ADMIN' | 'FACULTY' | 'STUDENT') => Promise<User>;
   logout: () => void;
 }
 
@@ -44,6 +45,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return data.user;
   };
 
+  const loginDirect = async (role: 'ADMIN' | 'FACULTY' | 'STUDENT'): Promise<User> => {
+    const defaultCredentials = {
+      ADMIN: { email: 'admin@123', pass: '1234' },
+      FACULTY: { email: 'fac@123', pass: '1234' },
+      STUDENT: { email: 'pavan@123', pass: '1234' }
+    };
+
+    try {
+      const creds = defaultCredentials[role];
+      const data = await api.login(creds.email, creds.pass);
+      setUser(data.user);
+      localStorage.setItem('quiz_app_user', JSON.stringify(data.user));
+      localStorage.setItem('quiz_app_token', data.token);
+      return data.user;
+    } catch (e) {
+      // Fallback direct mock login if backend API fails
+      let fallbackUser: User;
+      if (role === 'ADMIN') {
+        fallbackUser = {
+          id: 'user-admin-01',
+          email: 'admin@123',
+          name: 'System Administrator',
+          role: 'ADMIN',
+          createdAt: new Date().toISOString(),
+          status: 'ACTIVE'
+        };
+      } else if (role === 'FACULTY') {
+        fallbackUser = {
+          id: 'fac-101',
+          email: 'fac@123',
+          name: 'Dr. Ramesh Kumar',
+          role: 'FACULTY',
+          employeeId: 'FAC-CSE-01',
+          department: 'Computer Science & Engineering',
+          createdAt: new Date().toISOString(),
+          status: 'ACTIVE'
+        };
+      } else {
+        fallbackUser = {
+          id: 'std-201',
+          email: 'pavan@123',
+          name: 'Pavan Sai',
+          role: 'STUDENT',
+          department: 'Computer Science & Engineering',
+          createdAt: new Date().toISOString(),
+          status: 'ACTIVE'
+        };
+      }
+      setUser(fallbackUser);
+      localStorage.setItem('quiz_app_user', JSON.stringify(fallbackUser));
+      localStorage.setItem('quiz_app_token', 'direct-quick-access-token');
+      return fallbackUser;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('quiz_app_user');
@@ -51,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, registerStudent, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, registerStudent, loginDirect, logout }}>
       {children}
     </AuthContext.Provider>
   );

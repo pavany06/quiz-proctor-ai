@@ -7,7 +7,7 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onJoinDirectByCode }) => {
-  const { login, registerStudent } = useAuth();
+  const { login, registerStudent, loginDirect } = useAuth();
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'JOIN_CODE'>('LOGIN');
 
   // Form State
@@ -20,6 +20,18 @@ export const Login: React.FC<LoginProps> = ({ onJoinDirectByCode }) => {
   const [error, setError] = useState<string | null>(null);
 
   const [validatedQuiz, setValidatedQuiz] = useState<any | null>(null);
+
+  const handleQuickLogin = async (role: 'STUDENT' | 'FACULTY' | 'ADMIN') => {
+    setLoading(true);
+    setError(null);
+    try {
+      await loginDirect(role);
+    } catch (err: any) {
+      setError(err.message || 'Direct login failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,6 +300,47 @@ export const Login: React.FC<LoginProps> = ({ onJoinDirectByCode }) => {
               </form>
             </div>
           )}
+        </div>
+
+        {/* Quick Direct Access Links (Direct Bypass) */}
+        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 shadow-xl text-center">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            ⚡ Quick Direct Access (No Auth Required)
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Click any role below to enter directly into the system:
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('STUDENT')}
+              className="flex flex-col items-center justify-center gap-1 rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-2.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/50 hover:border-emerald-500/60 active:scale-95 transition shadow-xs"
+            >
+              <span className="text-base">🎓</span>
+              <span>Student</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('FACULTY')}
+              className="flex flex-col items-center justify-center gap-1 rounded-xl border border-blue-500/30 bg-blue-950/30 p-2.5 text-xs font-semibold text-blue-300 hover:bg-blue-900/50 hover:border-blue-500/60 active:scale-95 transition shadow-xs"
+            >
+              <span className="text-base">👨‍🏫</span>
+              <span>Faculty</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('ADMIN')}
+              className="flex flex-col items-center justify-center gap-1 rounded-xl border border-purple-500/30 bg-purple-950/30 p-2.5 text-xs font-semibold text-purple-300 hover:bg-purple-900/50 hover:border-purple-500/60 active:scale-95 transition shadow-xs"
+            >
+              <span className="text-base">🛡️</span>
+              <span>Admin</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
