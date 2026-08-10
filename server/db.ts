@@ -819,8 +819,116 @@ function createInitialSeedData(): DatabaseSchema {
   };
 }
 
+// Firebase Cloud Firestore Engine Integration
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  writeBatch
+} from 'firebase/firestore';
+
+// Read Firebase Config
+let firestoreInstance: any = null;
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    const dbId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+      ? firebaseConfig.firestoreDatabaseId
+      : undefined;
+    firestoreInstance = getFirestore(app, dbId);
+    console.log('🔥 Firebase Cloud Firestore linked successfully! Project:', firebaseConfig.projectId, 'Database:', dbId || '(default)');
+  }
+} catch (err) {
+  console.error('Error initializing Firebase in server/db.ts:', err);
+}
+
 // Global in-memory database instance
 let db: DatabaseSchema;
+
+/**
+ * Async helper to dump/sync items directly into Firebase Firestore collection
+ */
+export async function syncItemsToFirestore(collectionName: string, items: any[]) {
+  if (!firestoreInstance || !Array.isArray(items) || items.length === 0) return;
+  try {
+    const batch = writeBatch(firestoreInstance);
+    let count = 0;
+
+    for (const item of items) {
+      const docId = String(item.id || `${collectionName}-${Date.now()}-${Math.floor(Math.random() * 1000)}`);
+      const docRef = doc(firestoreInstance, collectionName, docId);
+      const cleanItem = JSON.parse(JSON.stringify(item));
+      batch.set(docRef, cleanItem, { merge: true });
+      count++;
+
+      if (count % 450 === 0) {
+        await batch.commit();
+      }
+    }
+    await batch.commit();
+  } catch (err) {
+    console.error(`Error writing collection ${collectionName} to Firebase Firestore:`, err);
+  }
+}
+
+/**
+ * Fetch collection docs from Firebase Cloud Firestore
+ */
+export async function fetchFirestoreCollection(collectionName: string): Promise<any[]> {
+  if (!firestoreInstance) return [];
+  try {
+    const colRef = collection(firestoreInstance, collectionName);
+    const snapshot = await getDocs(colRef);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error(`Error reading ${collectionName} from Firestore:`, err);
+    return [];
+  }
+}
+
+/**
+ * Sync Local Memory & db.json with Firebase Cloud Firestore
+ */
+export async function syncWithFirebaseCloud() {
+  if (!firestoreInstance) return;
+  console.log('🔄 Syncing server database state with Firebase Cloud Firestore...');
+
+  try {
+    const collections: (keyof DatabaseSchema)[] = ['users', 'quizzes', 'attempts', 'practiceQuizzes', 'facultyLogs', 'auditLogs'];
+
+    for (const col of collections) {
+      const cloudDocs = await fetchFirestoreCollection(col);
+
+      if (cloudDocs.length > 0) {
+        // Merge cloud docs into local database
+        const localList = db[col] as any[];
+        cloudDocs.forEach(cDoc => {
+          const idx = localList.findIndex((item: any) => item.id === cDoc.id || (col === 'users' && item.email?.toLowerCase() === cDoc.email?.toLowerCase()));
+          if (idx >= 0) {
+            localList[idx] = { ...localList[idx], ...cDoc };
+          } else {
+            localList.push(cDoc);
+          }
+        });
+      } else if (db[col] && (db[col] as any[]).length > 0) {
+        // If Firestore collection is empty, upload seed local data to Firestore
+        await syncItemsToFirestore(col, db[col] as any[]);
+        console.log(`📤 Seeded ${db[col].length} items to empty Firebase collection '${col}'`);
+      }
+    }
+
+    // Save updated combined state locally
+    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(db, null, 2), 'utf-8');
+    console.log('✅ Firebase Cloud Firestore synchronization completed!');
+  } catch (err) {
+    console.error('Error during Firebase sync:', err);
+  }
+}
 
 export function initDatabase(): DatabaseSchema {
   const dataDir = path.dirname(DB_FILE_PATH);
@@ -857,26 +965,38 @@ export function initDatabase(): DatabaseSchema {
       });
 
       saveDatabase();
-      return db;
     } catch (err) {
       console.warn("Failed reading db.json, creating new database file:", err);
       db = createInitialSeedData();
       saveDatabase();
-      return db;
     }
   } else {
     db = createInitialSeedData();
     saveDatabase();
-    return db;
   }
+
+  // Trigger non-blocking async Firebase cloud synchronization
+  syncWithFirebaseCloud().catch(e => console.error('Firebase Cloud sync error:', e));
+
+  return db;
 }
 
 export function saveDatabase() {
   if (!db) return;
   try {
     fs.writeFileSync(DB_FILE_PATH, JSON.stringify(db, null, 2), 'utf-8');
+    
+    // Automatically stream & sync updates directly to Firebase Cloud Firestore
+    if (firestoreInstance) {
+      syncItemsToFirestore('users', db.users);
+      syncItemsToFirestore('quizzes', db.quizzes);
+      syncItemsToFirestore('attempts', db.attempts);
+      syncItemsToFirestore('practiceQuizzes', db.practiceQuizzes);
+      syncItemsToFirestore('facultyLogs', db.facultyLogs);
+      syncItemsToFirestore('auditLogs', db.auditLogs);
+    }
   } catch (err) {
-    console.error("Error saving db.json:", err);
+    console.error("Error saving database:", err);
   }
 }
 

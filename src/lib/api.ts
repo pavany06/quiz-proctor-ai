@@ -12,6 +12,31 @@ import {
   IntegrityEvent
 } from '../types';
 
+async function parseResponse<T = any>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    if (!res.ok) {
+      if (text.startsWith('<!DOCTYPE') || text.toLowerCase().includes('the page')) {
+        throw new Error(`Server returned HTML error page (${res.status} ${res.statusText}). Please check backend API server.`);
+      }
+      throw new Error(text.slice(0, 150) || `Server error (${res.status})`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error('Invalid response received from server.');
+    }
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+  }
+  return data;
+}
+
 export const api = {
   // Auth
   login: async (email: string, password: string) => {
@@ -20,9 +45,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed.');
-    return data;
+    return parseResponse<{ user: User; token: string }>(res);
   },
 
   registerStudent: async (name: string, email: string, password: string) => {
@@ -31,15 +54,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Registration failed.');
-    return data;
+    return parseResponse<{ user: User; token: string }>(res);
   },
 
   // Faculty Management (Admin)
   getFacultyList: async (): Promise<User[]> => {
     const res = await fetch('/api/admin/faculty');
-    return res.json();
+    return parseResponse<User[]>(res);
   },
 
   createFaculty: async (payload: any) => {
@@ -48,9 +69,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed creating faculty.');
-    return data;
+    return parseResponse<User>(res);
   },
 
   toggleFacultyStatus: async (id: string, status: 'ACTIVE' | 'INACTIVE') => {
@@ -59,9 +78,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed updating status.');
-    return data;
+    return parseResponse<User>(res);
   },
 
   resetFacultyPassword: async (id: string, newPassword: string) => {
@@ -70,15 +87,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ newPassword })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed resetting password.');
-    return data;
+    return parseResponse<{ message: string }>(res);
   },
 
   // Student Management (Admin)
   getStudentsList: async (): Promise<User[]> => {
     const res = await fetch('/api/admin/students');
-    return res.json();
+    return parseResponse<User[]>(res);
   },
 
   // Quizzes
@@ -87,26 +102,22 @@ export const api = {
     if (facultyId) params.append('facultyId', facultyId);
     if (role) params.append('role', role);
     const res = await fetch(`/api/quizzes?${params.toString()}`);
-    return res.json();
+    return parseResponse<Quiz[]>(res);
   },
 
   getFacultyQuizzes: async (facultyId: string): Promise<Quiz[]> => {
     const res = await fetch(`/api/quizzes?facultyId=${encodeURIComponent(facultyId)}`);
-    return res.json();
+    return parseResponse<Quiz[]>(res);
   },
 
   getQuizById: async (id: string): Promise<Quiz> => {
     const res = await fetch(`/api/quizzes/${id}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Quiz not found.');
-    return data;
+    return parseResponse<Quiz>(res);
   },
 
   getQuizByCode: async (code: string): Promise<Quiz> => {
     const res = await fetch(`/api/quizzes/code/${encodeURIComponent(code)}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Invalid quiz code.');
-    return data;
+    return parseResponse<Quiz>(res);
   },
 
   createQuiz: async (payload: any): Promise<Quiz> => {
@@ -115,9 +126,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed creating quiz.');
-    return data;
+    return parseResponse<Quiz>(res);
   },
 
   updateQuiz: async (id: string, payload: any): Promise<Quiz> => {
@@ -126,30 +135,22 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed updating quiz.');
-    return data;
+    return parseResponse<Quiz>(res);
   },
 
   publishQuiz: async (id: string) => {
     const res = await fetch(`/api/quizzes/${id}/publish`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed publishing quiz.');
-    return data;
+    return parseResponse<Quiz>(res);
   },
 
   regenerateQuizCode: async (id: string) => {
     const res = await fetch(`/api/quizzes/${id}/regenerate-code`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed regenerating code.');
-    return data;
+    return parseResponse<{ secretCode: string }>(res);
   },
 
   deleteQuiz: async (id: string) => {
     const res = await fetch(`/api/quizzes/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed deleting quiz.');
-    return data;
+    return parseResponse<{ message: string }>(res);
   },
 
   // CSV Import
@@ -159,9 +160,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ csvText })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'CSV import failed.');
-    return data;
+    return parseResponse<any>(res);
   },
 
   // AI Question Generation
@@ -171,9 +170,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'AI generation failed.');
-    return data;
+    return parseResponse<{ questions: Question[] }>(res);
   },
 
   // Quiz Engine & Attempts
@@ -183,24 +180,22 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed submitting quiz.');
-    return data;
+    return parseResponse<QuizAttempt>(res);
   },
 
   getStudentAttempts: async (studentId: string): Promise<QuizAttempt[]> => {
     const res = await fetch(`/api/attempts/student/${encodeURIComponent(studentId)}`);
-    return res.json();
+    return parseResponse<QuizAttempt[]>(res);
   },
 
   getFacultyQuizResults: async (): Promise<QuizAttempt[]> => {
     const res = await fetch(`/api/faculty/quiz-results`);
-    return res.json();
+    return parseResponse<QuizAttempt[]>(res);
   },
 
   getIntegrityEvents: async (): Promise<IntegrityEvent[]> => {
     const res = await fetch(`/api/faculty/integrity-events`);
-    return res.json();
+    return parseResponse<IntegrityEvent[]>(res);
   },
 
   logIntegrityEvent: async (payload: any) => {
@@ -209,7 +204,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    return res.json();
+    return parseResponse<any>(res);
   },
 
   // Live Sessions & Exam Integrity
@@ -217,23 +212,23 @@ export const api = {
     const params = new URLSearchParams();
     if (facultyId) params.append('facultyId', facultyId);
     const res = await fetch(`/api/faculty/live-sessions?${params.toString()}`);
-    return res.json();
+    return parseResponse<LiveSession[]>(res);
   },
 
   // Analytics
   getSystemAnalytics: async () => {
     const res = await fetch('/api/analytics/system');
-    return res.json();
+    return parseResponse<any>(res);
   },
 
   getFacultyDashboardStats: async (facultyId: string) => {
     const res = await fetch(`/api/analytics/faculty-stats?facultyId=${encodeURIComponent(facultyId)}`);
-    return res.json();
+    return parseResponse<any>(res);
   },
 
   getMLModelComparison: async (): Promise<{ models: MLModelResult[]; bestModelName: string; totalSamples: number }> => {
     const res = await fetch('/api/analytics/ml-model-comparison');
-    return res.json();
+    return parseResponse<{ models: MLModelResult[]; bestModelName: string; totalSamples: number }>(res);
   },
 
   predictStudentPerformance: async (payload: any) => {
@@ -242,9 +237,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed running ML prediction.');
-    return data;
+    return parseResponse<any>(res);
   },
 
   getAIQuizAnalysis: async (attemptsData: any[]) => {
@@ -253,32 +246,28 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ attempts: attemptsData })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed generating AI analysis.');
-    return data;
+    return parseResponse<AIInsights>(res);
   },
 
   // Practice Quizzes
   getPracticeQuizzes: async (): Promise<PracticeQuiz[]> => {
     const res = await fetch('/api/practice-quizzes');
-    return res.json();
+    return parseResponse<PracticeQuiz[]>(res);
   },
 
   getPracticeQuizById: async (id: string): Promise<PracticeQuiz> => {
     const res = await fetch(`/api/practice-quizzes/${id}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Practice quiz not found.');
-    return data;
+    return parseResponse<PracticeQuiz>(res);
   },
 
   // Logs
   getFacultyActivityLogs: async (): Promise<FacultyActivityLog[]> => {
     const res = await fetch('/api/logs/faculty-activity');
-    return res.json();
+    return parseResponse<FacultyActivityLog[]>(res);
   },
 
   getAuditLogs: async (): Promise<AuditLog[]> => {
     const res = await fetch('/api/logs/audit');
-    return res.json();
+    return parseResponse<AuditLog[]>(res);
   }
 };
