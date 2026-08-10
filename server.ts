@@ -1217,6 +1217,33 @@ app.get('/api/logs/audit', (req, res) => {
   res.json(db.auditLogs);
 });
 
+// 11. ADMIN FULL DATABASE JSON DUMP & IMPORT & FIREBASE CLOUD
+app.get('/api/admin/database/dump', (req, res) => {
+  const db = getDB();
+  res.json({
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    data: db
+  });
+});
+
+app.post('/api/admin/database/import', (req, res) => {
+  const { users, quizzes, attempts, practiceQuizzes, facultyLogs, auditLogs } = req.body;
+  const db = getDB();
+
+  if (Array.isArray(users)) db.users = users;
+  if (Array.isArray(quizzes)) db.quizzes = quizzes;
+  if (Array.isArray(attempts)) db.attempts = attempts;
+  if (Array.isArray(practiceQuizzes)) db.practiceQuizzes = practiceQuizzes;
+  if (Array.isArray(facultyLogs)) db.facultyLogs = facultyLogs;
+  if (Array.isArray(auditLogs)) db.auditLogs = auditLogs;
+
+  saveDatabase();
+
+  logAudit('admin@123', 'ADMIN', 'DATABASE_JSON_IMPORT', 'SUCCESS', 'Bulk JSON database dump imported successfully.');
+  res.json({ message: 'JSON database imported successfully!', db });
+});
+
 // Fallback 404 handler for unmatched API routes
 app.all('/api/*', (req, res) => {
   res.status(404).json({ error: `API route ${req.method} ${req.path} not found.` });

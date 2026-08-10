@@ -20,7 +20,8 @@ import {
   Lock,
   User,
   ListChecks,
-  CheckSquare
+  CheckSquare,
+  Cloud
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const adminNav = [
     { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
+    { id: 'firebase-cloud', label: 'Firebase Cloud & JSON Dump', icon: Cloud },
     { id: 'faculty-management', label: 'Faculty Management', icon: Users },
     { id: 'student-management', label: 'Student Management', icon: UserCheck },
     { id: 'practice-quizzes', label: 'Practice Quizzes (Admin)', icon: BookOpen },

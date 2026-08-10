@@ -6,6 +6,7 @@ import { Login } from './pages/Login';
 
 // Admin Views
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { FirebaseCloudAdmin } from './pages/admin/FirebaseCloudAdmin';
 import { FacultyManagement } from './pages/admin/FacultyManagement';
 import { StudentManagement } from './pages/admin/StudentManagement';
 import { PracticeQuizAdmin } from './pages/admin/PracticeQuizAdmin';
@@ -114,6 +115,8 @@ const MainApp: React.FC = () => {
       switch (activeTab) {
         case 'dashboard':
           return <AdminDashboard />;
+        case 'firebase-cloud':
+          return <FirebaseCloudAdmin />;
         case 'faculty-management':
           return <FacultyManagement />;
         case 'student-management':

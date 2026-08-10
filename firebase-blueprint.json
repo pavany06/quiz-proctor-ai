@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "users": {
+      "title": "Users",
+      "description": "User accounts (Admin, Faculty, Student)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "department": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["id", "email", "name", "role", "status", "createdAt"]
+    },
+    "quizzes": {
+      "title": "Quizzes",
+      "description": "Exams and assessments created by faculty",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "topic": { "type": "string" },
+        "category": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "secretCode": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "passingPercentage": { "type": "number" },
+        "createdByFacultyId": { "type": "string" },
+        "facultyName": { "type": "string" },
+        "status": { "type": "string" },
+        "questions": { "type": "array" },
+        "settings": { "type": "object" },
+        "schedule": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "secretCode", "createdByFacultyId", "status"]
+    },
+    "attempts": {
+      "title": "Quiz Attempts",
+      "description": "Student exam submissions and integrity telemetry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "quizId": { "type": "string" },
+        "quizTitle": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "startTime": { "type": "string" },
+        "submitTime": { "type": "string" },
+        "status": { "type": "string" },
+        "answers": { "type": "array" },
+        "totalScore": { "type": "number" },
+        "maxScore": { "type": "number" },
+        "percentage": { "type": "number" },
+        "passed": { "type": "boolean" },
+        "focusLossCount": { "type": "number" },
+        "fullscreenExitCount": { "type": "number" },
+        "suspiciousActivityScore": { "type": "number" },
+        "riskLevel": { "type": "string" },
+        "timeline": { "type": "array" }
+      },
+      "required": ["id", "quizId", "studentId", "status"]
+    },
+    "practiceQuizzes": {
+      "title": "Practice Quizzes",
+      "description": "Self-study practice quizzes for students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "description": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "passingPercentage": { "type": "number" },
+        "totalAttempts": { "type": "number" },
+        "avgScore": { "type": "number" },
+        "isPublished": { "type": "boolean" },
+        "questions": { "type": "array" }
+      },
+      "required": ["id", "title", "subject", "questions"]
+    },
+    "facultyLogs": {
+      "title": "Faculty Logs",
+      "description": "Activity logs for faculty members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "facultyId": { "type": "string" },
+        "facultyName": { "type": "string" },
+        "action": { "type": "string" },
+        "description": { "type": "string" },
+        "quizId": { "type": "string" },
+        "quizTitle": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "facultyId", "action"]
+    },
+    "auditLogs": {
+      "title": "Audit Logs",
+      "description": "System security and access audit logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userRole": { "type": "string" },
+        "action": { "type": "string" },
+        "status": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "userEmail", "action", "status"]
+    }
+  }
+}
