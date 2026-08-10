@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import firebaseConfig from '../firebase-applet-config.json';
 import {
   User,
   FacultyProfile,
@@ -12,7 +13,7 @@ import {
   PracticeQuiz,
   FacultyActivityLog,
   AuditLog
-} from '../src/types.js';
+} from '../src/types';
 
 const DB_FILE_PATH = path.join(process.cwd(), 'data', 'db.json');
 
@@ -830,13 +831,10 @@ import {
   writeBatch
 } from 'firebase/firestore';
 
-// Read Firebase Config
 let firestoreInstance: any = null;
 try {
-  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  if (fs.existsSync(configPath)) {
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  if (firebaseConfig && firebaseConfig.projectId) {
+    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig as any);
     const dbId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
       ? firebaseConfig.firestoreDatabaseId
       : undefined;
@@ -922,8 +920,12 @@ export async function syncWithFirebaseCloud() {
       }
     }
 
-    // Save updated combined state locally
-    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(db, null, 2), 'utf-8');
+    // Save updated combined state locally if filesystem is writable
+    try {
+      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(db, null, 2), 'utf-8');
+    } catch (e) {
+      // Ignored on read-only environments
+    }
     console.log('✅ Firebase Cloud Firestore synchronization completed!');
   } catch (err) {
     console.error('Error during Firebase sync:', err);
@@ -931,16 +933,23 @@ export async function syncWithFirebaseCloud() {
 }
 
 export function initDatabase(): DatabaseSchema {
-  const dataDir = path.dirname(DB_FILE_PATH);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  try {
+    const dataDir = path.dirname(DB_FILE_PATH);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+  } catch (e) {
+    // Read-only filesystem environment (e.g., Vercel / Cloud Functions)
   }
 
-  if (fs.existsSync(DB_FILE_PATH)) {
-    try {
+  let loadedFromFile = false;
+
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
       const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
       db = JSON.parse(raw);
-      
+      loadedFromFile = true;
+
       const seed = createInitialSeedData();
 
       // Ensure 10 student test cases and faculty exist
@@ -965,12 +974,12 @@ export function initDatabase(): DatabaseSchema {
       });
 
       saveDatabase();
-    } catch (err) {
-      console.warn("Failed reading db.json, creating new database file:", err);
-      db = createInitialSeedData();
-      saveDatabase();
     }
-  } else {
+  } catch (err) {
+    console.warn("Could not read db.json file, initializing in-memory store:", err);
+  }
+
+  if (!loadedFromFile || !db) {
     db = createInitialSeedData();
     saveDatabase();
   }
@@ -985,18 +994,18 @@ export function saveDatabase() {
   if (!db) return;
   try {
     fs.writeFileSync(DB_FILE_PATH, JSON.stringify(db, null, 2), 'utf-8');
-    
-    // Automatically stream & sync updates directly to Firebase Cloud Firestore
-    if (firestoreInstance) {
-      syncItemsToFirestore('users', db.users);
-      syncItemsToFirestore('quizzes', db.quizzes);
-      syncItemsToFirestore('attempts', db.attempts);
-      syncItemsToFirestore('practiceQuizzes', db.practiceQuizzes);
-      syncItemsToFirestore('facultyLogs', db.facultyLogs);
-      syncItemsToFirestore('auditLogs', db.auditLogs);
-    }
   } catch (err) {
-    console.error("Error saving database:", err);
+    // Read-only filesystem on Vercel
+  }
+
+  // Automatically stream & sync updates directly to Firebase Cloud Firestore
+  if (firestoreInstance) {
+    syncItemsToFirestore('users', db.users);
+    syncItemsToFirestore('quizzes', db.quizzes);
+    syncItemsToFirestore('attempts', db.attempts);
+    syncItemsToFirestore('practiceQuizzes', db.practiceQuizzes);
+    syncItemsToFirestore('facultyLogs', db.facultyLogs);
+    syncItemsToFirestore('auditLogs', db.auditLogs);
   }
 }
 

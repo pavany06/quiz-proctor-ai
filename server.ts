@@ -8,7 +8,7 @@ import {
   saveDatabase,
   hashPassword,
   comparePassword
-} from './server/db.js';
+} from './server/db';
 import {
   User,
   Quiz,
@@ -19,9 +19,9 @@ import {
   FacultyActivityLog,
   AuditLog,
   PracticeQuiz
-} from './src/types.js';
-import { generateAIQuestions, generateAIPerformanceInsights } from './server/ai.js';
-import { trainAndEvaluateMLModels } from './server/ml.js';
+} from './src/types';
+import { generateAIQuestions, generateAIPerformanceInsights } from './server/ai';
+import { trainAndEvaluateMLModels } from './server/ml';
 
 // Initialize DB on boot
 initDatabase();
